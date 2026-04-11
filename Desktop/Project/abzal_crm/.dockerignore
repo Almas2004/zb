@@ -1,0 +1,11 @@
+node_modules
+client/node_modules
+server/node_modules
+client/dist
+.git
+.github
+*.log
+server/.env
+server/server.log
+npm-debug.log*
+postgres_data

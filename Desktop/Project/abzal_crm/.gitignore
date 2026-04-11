@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+postgres_data/
+server/templates/*.docx
+server/templates/*.pdf
+!server/templates/.gitkeep
+!server/templates/README.md
