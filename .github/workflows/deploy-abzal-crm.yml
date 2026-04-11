@@ -39,30 +39,6 @@ jobs:
           node --check server/src/routes/telegram.js
           node --check server/src/documentsService.js
 
-      - name: Upload project to server
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          script: |
-            mkdir -p "${{ secrets.APP_DIR }}"
-
-      - name: Upload project to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          source: "Desktop/Project/abzal_crm"
-          target: ${{ secrets.APP_DIR }}
-          strip_components: 3
-          overwrite: true
-          rm: false
-          tar_tmp_path: /tmp
-
       - name: Write env files and deploy
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -76,14 +52,29 @@ jobs:
           envs: ROOT_ENV_FILE,SERVER_ENV_FILE
           script: |
             set -e
-            cd "${{ secrets.APP_DIR }}"
-            mkdir -p server/templates
-            cat > .env <<'EOF'
+            APP_DIR="${{ secrets.APP_DIR }}"
+            REPO_URL="https://github.com/${{ github.repository }}.git"
+            PROJECT_DIR="${APP_DIR}/Desktop/Project/abzal_crm"
+
+            mkdir -p "${APP_DIR}"
+            if [ ! -d "${APP_DIR}/.git" ]; then
+              git clone "${REPO_URL}" "${APP_DIR}"
+            fi
+
+            cd "${APP_DIR}"
+            git fetch origin main
+            git reset --hard "${{ github.sha }}"
+
+            mkdir -p "${PROJECT_DIR}/server/templates"
+
+            cat > "${PROJECT_DIR}/.env" <<'EOF'
             ${ROOT_ENV_FILE}
             EOF
-            cat > server/.env <<'EOF'
+            cat > "${PROJECT_DIR}/server/.env" <<'EOF'
             ${SERVER_ENV_FILE}
             EOF
+
+            cd "${PROJECT_DIR}"
             docker compose -f docker-compose.prod.yml build --pull
             docker compose -f docker-compose.prod.yml up -d
             docker compose -f docker-compose.prod.yml exec -T server node src/scripts/initDb.js
