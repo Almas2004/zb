@@ -69,10 +69,10 @@ jobs:
 
             mkdir -p "${PROJECT_DIR}/server/templates"
 
-            cat > "${PROJECT_DIR}/.env" <<'EOF'
+            cat > "${PROJECT_DIR}/.env" <<EOF
             ${ROOT_ENV_FILE}
             EOF
-            cat > "${PROJECT_DIR}/server/.env" <<'EOF'
+            cat > "${PROJECT_DIR}/server/.env" <<EOF
             ${SERVER_ENV_FILE}
             EOF
 
