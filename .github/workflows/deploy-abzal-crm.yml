@@ -1,0 +1,90 @@
+name: Deploy Abzal CRM to VPS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Desktop/Project/abzal_crm/**'
+      - '.github/workflows/deploy-abzal-crm.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Desktop/Project/abzal_crm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Desktop/Project/abzal_crm/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build client
+        run: npm run build -w client
+
+      - name: Validate server files
+        run: |
+          node --check server/src/index.js
+          node --check server/src/routes/telegram.js
+          node --check server/src/documentsService.js
+
+      - name: Upload project to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "Desktop/Project/abzal_crm/*"
+          target: ${{ secrets.APP_DIR }}
+          strip_components: 3
+          overwrite: true
+          rm: false
+          tar_tmp_path: /tmp
+          exclude: |
+            .git
+            .github
+            node_modules
+            client/node_modules
+            server/node_modules
+            client/dist
+            server/.env
+            .env
+            *.log
+
+      - name: Write env files and deploy
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          ROOT_ENV_FILE: ${{ secrets.DEPLOY_ROOT_ENV }}
+          SERVER_ENV_FILE: ${{ secrets.DEPLOY_SERVER_ENV }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          envs: ROOT_ENV_FILE,SERVER_ENV_FILE
+          script: |
+            set -e
+            cd "${{ secrets.APP_DIR }}"
+            mkdir -p server/templates
+            cat > .env <<'EOF'
+            ${ROOT_ENV_FILE}
+            EOF
+            cat > server/.env <<'EOF'
+            ${SERVER_ENV_FILE}
+            EOF
+            docker compose -f docker-compose.prod.yml build --pull
+            docker compose -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml exec -T server node src/scripts/initDb.js
+            docker image prune -f
