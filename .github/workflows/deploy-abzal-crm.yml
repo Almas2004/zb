@@ -40,28 +40,28 @@ jobs:
           node --check server/src/documentsService.js
 
       - name: Upload project to server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            mkdir -p "${{ secrets.APP_DIR }}"
+
+      - name: Upload project to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           password: ${{ secrets.VPS_PASSWORD }}
           port: ${{ secrets.VPS_PORT }}
-          source: "Desktop/Project/abzal_crm/*"
+          source: "Desktop/Project/abzal_crm"
           target: ${{ secrets.APP_DIR }}
           strip_components: 3
           overwrite: true
           rm: false
           tar_tmp_path: /tmp
-          exclude: |
-            .git
-            .github
-            node_modules
-            client/node_modules
-            server/node_modules
-            client/dist
-            server/.env
-            .env
-            *.log
 
       - name: Write env files and deploy
         uses: appleboy/ssh-action@v1.2.0
