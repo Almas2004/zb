@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil } from 'lucide-react';
+﻿import { ArrowLeft, Pencil } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, getApiUrl } from '../api/client';
@@ -19,15 +19,51 @@ export function CaseDetailPage() {
   const { id } = useParams();
   const [record, setRecord] = useState<CaseRecord | null>(null);
   const [documents, setDocuments] = useState<CaseDocument[]>([]);
+  const [acknowledgingIds, setAcknowledgingIds] = useState<string[]>([]);
+
+  async function loadCase() {
+    if (!id) return;
+    const data = (await api.getCase(id)) as CaseRecord;
+    setRecord(data);
+  }
+
+  async function loadDocuments() {
+    if (!id) return;
+    const response = await fetch(getApiUrl(`/api/cases/${id}/documents`), {
+      headers: { Authorization: `Bearer ${localStorage.getItem('crm_token')}` }
+    });
+    const data = await response.json();
+    setDocuments(data as CaseDocument[]);
+  }
+
+  async function acknowledge(controlDateId: string) {
+    setAcknowledgingIds((current) => [...current, controlDateId]);
+    try {
+      await api.acknowledgeControlDate(controlDateId);
+      await loadCase();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Не удалось подтвердить дату');
+    } finally {
+      setAcknowledgingIds((current) => current.filter((idValue) => idValue !== controlDateId));
+    }
+  }
 
   async function downloadDocument(url: string) {
     const response = await fetch(getApiUrl(url), {
       headers: { Authorization: `Bearer ${localStorage.getItem('crm_token')}` }
     });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({ message: 'Не удалось скачать документ' }));
+      window.alert(errorBody.message || 'Не удалось скачать документ');
+      return;
+    }
+
     const blob = await response.blob();
     const disposition = response.headers.get('Content-Disposition') || '';
-    const match = disposition.match(/filename="?([^"]+)"?/);
-    const fileName = match?.[1] || 'document';
+    const utfName = disposition.match(/filename\*=UTF-8''([^;]+)/)?.[1];
+    const asciiName = disposition.match(/filename="?([^";]+)"?/)?.[1];
+    const fileName = decodeURIComponent(utfName || asciiName || 'document');
     const objectUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = objectUrl;
@@ -37,14 +73,8 @@ export function CaseDetailPage() {
   }
 
   useEffect(() => {
-    if (id) {
-      api.getCase(id).then((data) => setRecord(data as CaseRecord));
-      fetch(getApiUrl(`/api/cases/${id}/documents`), {
-        headers: { Authorization: `Bearer ${localStorage.getItem('crm_token')}` }
-      })
-        .then((response) => response.json())
-        .then((data) => setDocuments(data as CaseDocument[]));
-    }
+    void loadCase();
+    void loadDocuments();
   }, [id]);
 
   if (!record) return <div className="page">Загрузка...</div>;
@@ -70,9 +100,13 @@ export function CaseDetailPage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <Link className="back-link" to="/"><ArrowLeft size={16} /> Назад</Link>
+          <Link className="back-link" to="/cases">
+            <ArrowLeft size={16} /> Назад
+          </Link>
           <h1>{record.debtorFullName}</h1>
-          <p>{record.dgd} · {record.debtorIin}</p>
+          <p>
+            {record.dgd} • {record.debtorIin}
+          </p>
         </div>
         <Link className="primary-button" to={`/cases/${record.id}/edit`}>
           <Pencil size={18} /> Редактировать
@@ -90,7 +124,11 @@ export function CaseDetailPage() {
 
       <section className="page-section">
         <h2>Контрольные даты</h2>
-        <ControlDatesGrid controlDates={record.controlDates} />
+        <ControlDatesGrid
+          controlDates={record.controlDates}
+          onAcknowledge={acknowledge}
+          acknowledgingIds={acknowledgingIds}
+        />
       </section>
 
       <section className="page-section">

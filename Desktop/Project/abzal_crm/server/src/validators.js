@@ -29,6 +29,17 @@ export const caseSchema = z.object({
 });
 
 export const loginSchema = z.object({
-  email: z.string().email(),
+  username: z.string().trim().min(3).max(50),
+  password: z.string().min(1)
+});
+
+export const registerSchema = z.object({
+  name: z.string().trim().min(2, 'ФИО обязательно'),
+  username: z
+    .string()
+    .trim()
+    .min(3, 'Логин должен быть не короче 3 символов')
+    .max(50, 'Логин слишком длинный')
+    .regex(/^[a-zA-Z0-9._-]+$/, 'Логин может содержать только буквы, цифры, точку, дефис и нижнее подчеркивание'),
   password: z.string().min(1)
 });

@@ -254,7 +254,7 @@ export async function acknowledgeControlDate(controlDateId, acknowledgement) {
       updated_at = now()
      WHERE id = $1
      RETURNING case_id AS "caseId"`,
-    [controlDateId, acknowledgement.by || 'Telegram', acknowledgement.telegramUserId || null]
+    [controlDateId, acknowledgement.by || 'CRM', acknowledgement.telegramUserId || null]
   );
   return result.rows[0] || null;
 }

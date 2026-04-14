@@ -13,6 +13,13 @@ export type ControlDate = {
   status: ControlStatus;
 };
 
+export type SessionUser = {
+  id: string;
+  name: string;
+  username: string;
+  role: string;
+};
+
 export type CaseRecord = {
   id: string;
   dgd: string;

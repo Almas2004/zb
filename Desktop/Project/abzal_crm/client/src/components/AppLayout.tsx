@@ -1,10 +1,10 @@
-import { LayoutDashboard, LogOut, Plus, RefreshCw, TableProperties } from 'lucide-react';
+﻿import { LayoutDashboard, LogOut, Plus, RefreshCw, TableProperties } from 'lucide-react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { api, clearSession } from '../api/client';
+import { api, clearSession, getCurrentUser } from '../api/client';
 
 export function AppLayout() {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('crm_user') || '{}');
+  const user = getCurrentUser();
 
   async function runNotifications() {
     await api.runNotifications();
@@ -40,7 +40,7 @@ export function AppLayout() {
           </button>
           <div className="userbox">
             <strong>{user?.name || 'Пользователь'}</strong>
-            <span>{user?.email}</span>
+            <span>@{user?.username || 'user'}</span>
           </div>
           <button className="ghost-button" onClick={logout}>
             <LogOut size={16} /> Выйти

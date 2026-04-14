@@ -1,5 +1,6 @@
 import express from 'express';
 import {
+  acknowledgeControlDate,
   createCase,
   deleteCase,
   getDashboardStats,
@@ -33,6 +34,20 @@ casesRouter.get('/dashboard', async (_req, res, next) => {
     res.json(await getDashboardStats());
   } catch (error) {
     next(error);
+  }
+});
+
+casesRouter.post('/control-dates/:controlDateId/acknowledge', async (req, res, next) => {
+  try {
+    const acknowledged = await acknowledgeControlDate(req.params.controlDateId, {
+      by: req.user?.name || req.user?.username || 'CRM',
+      telegramUserId: null
+    });
+
+    if (!acknowledged) return res.status(404).json({ message: 'Контрольная дата не найдена' });
+    return res.status(204).send();
+  } catch (error) {
+    return next(error);
   }
 });
 
