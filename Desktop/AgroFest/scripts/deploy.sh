@@ -26,7 +26,9 @@ docker compose -f docker-compose.prod.yml build app
 docker compose -f docker-compose.prod.yml run --rm app npx prisma migrate deploy
 docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
 
-if ! curl --fail --retry 10 --retry-delay 5 http://127.0.0.1/health >/dev/null; then
+HEALTHCHECK_URL="${HEALTHCHECK_URL:-http://127.0.0.1:3000/api/health}"
+
+if ! curl --fail --retry 10 --retry-delay 5 "${HEALTHCHECK_URL}" >/dev/null; then
   docker compose -f docker-compose.prod.yml ps
   docker compose -f docker-compose.prod.yml logs --tail=120
   exit 1
