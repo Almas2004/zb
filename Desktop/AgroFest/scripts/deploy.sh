@@ -28,7 +28,16 @@ docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
 
 HEALTHCHECK_URL="${HEALTHCHECK_URL:-http://127.0.0.1:3000/api/health}"
 
-if ! curl --fail --retry 10 --retry-delay 5 "${HEALTHCHECK_URL}" >/dev/null; then
+healthcheck_ok=0
+for attempt in {1..30}; do
+  if curl --fail --silent --show-error "${HEALTHCHECK_URL}" >/dev/null; then
+    healthcheck_ok=1
+    break
+  fi
+  sleep 2
+done
+
+if [[ "${healthcheck_ok}" != "1" ]]; then
   docker compose -f docker-compose.prod.yml ps
   docker compose -f docker-compose.prod.yml logs --tail=120
   exit 1
