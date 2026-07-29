@@ -1,0 +1,136 @@
+name: Deploy AgroFest
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "Desktop/AgroFest/**"
+      - ".github/workflows/agrofest-deploy.yml"
+
+concurrency:
+  group: agrofest-production
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: agrofest_ci
+          POSTGRES_USER: agrofest_ci
+          POSTGRES_PASSWORD: agrofest_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agrofest_ci -d agrofest_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://agrofest_ci:agrofest_ci_password@localhost:5432/agrofest_ci?schema=public
+      SESSION_SECRET: ci-session-secret-change-not-used-in-production-32-bytes
+      APP_URL: http://localhost:3000
+      APP_PORT: "3000"
+      SEED_ADMIN_LOGIN: admin
+      SEED_ADMIN_PASSWORD: ci-admin-password
+      SEED_SCANNER_PASSWORD: ci-scanner-password
+      CAPTCHA_ENABLED: "false"
+      CAPTCHA_SECRET: ""
+      WHATSAPP_BUSINESS_ENABLED: "false"
+      WHATSAPP_BUSINESS_TOKEN: ""
+      WHATSAPP_BUSINESS_PHONE_NUMBER_ID: ""
+      RATE_LIMIT_WINDOW_MS: "60000"
+      RATE_LIMIT_MAX: "100"
+      TZ: Asia/Almaty
+      ALLOW_OUTSIDE_EVENT_DATES: "true"
+      TEST_EVENT_DATE: "2026-07-31"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Desktop/AgroFest/package-lock.json
+
+      - name: Install dependencies
+        working-directory: Desktop/AgroFest
+        run: npm ci
+
+      - name: Apply database migrations
+        working-directory: Desktop/AgroFest
+        run: npx prisma migrate deploy
+
+      - name: Seed CI database
+        working-directory: Desktop/AgroFest
+        run: npm run db:seed
+
+      - name: Typecheck
+        working-directory: Desktop/AgroFest
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: Desktop/AgroFest
+        run: npm run lint
+
+      - name: Test
+        working-directory: Desktop/AgroFest
+        run: npm run test
+
+      - name: Production build
+        working-directory: Desktop/AgroFest
+        run: npm run build
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/agrofest_deploy
+          chmod 600 ~/.ssh/agrofest_deploy
+          ssh-keyscan -p "${SSH_PORT:-22}" "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Prepare artifact
+        run: |
+          tar \
+            --exclude='.git' \
+            --exclude='.next' \
+            --exclude='node_modules' \
+            --exclude='.env' \
+            --exclude='coverage' \
+            --exclude='tmp' \
+            -czf agrofest-release.tar.gz -C Desktop/AgroFest .
+
+      - name: Deploy on VPS
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          APP_ENV: ${{ secrets.APP_ENV }}
+        run: |
+          ssh -i ~/.ssh/agrofest_deploy -p "${SSH_PORT:-22}" "${SSH_USER}@${SSH_HOST}" "sudo mkdir -p /opt/app /opt/backups && sudo chown -R ${SSH_USER}:${SSH_USER} /opt/app /opt/backups"
+          scp -i ~/.ssh/agrofest_deploy -P "${SSH_PORT:-22}" agrofest-release.tar.gz "${SSH_USER}@${SSH_HOST}:/tmp/agrofest-release.tar.gz"
+          printf '%s\n' "$APP_ENV" | ssh -i ~/.ssh/agrofest_deploy -p "${SSH_PORT:-22}" "${SSH_USER}@${SSH_HOST}" "cat > /tmp/agrofest.env && chmod 600 /tmp/agrofest.env"
+          ssh -i ~/.ssh/agrofest_deploy -p "${SSH_PORT:-22}" "${SSH_USER}@${SSH_HOST}" "cd /opt/app && tar -xzf /tmp/agrofest-release.tar.gz && mv /tmp/agrofest.env .env && chmod 600 .env && SKIP_GIT_PULL=1 bash scripts/deploy.sh"
+
+      - name: Healthcheck
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+        run: curl --fail --retry 10 --retry-delay 5 "http://${SSH_HOST}/health"

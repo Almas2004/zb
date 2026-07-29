@@ -1,0 +1,16 @@
+{
+  "name": "AgroFest 2026 Scanner",
+  "short_name": "AgroFest",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fffaf4",
+  "theme_color": "#004F2F",
+  "icons": [
+    {
+      "src": "/branding/agrofest-logo.png",
+      "sizes": "1536x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

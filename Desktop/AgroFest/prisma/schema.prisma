@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GuestCategory {
+  GUEST
+  FARMER
+}
+
+enum GuestLanguage {
+  RU
+  KZ
+}
+
+enum GuestStatus {
+  ACTIVE
+  BLOCKED
+  DELETED
+}
+
+enum UserRole {
+  ADMIN
+  SCANNER
+}
+
+enum CheckInMode {
+  ONLINE
+  OFFLINE_SYNC
+  MANUAL
+  SELF_REGISTRATION
+}
+
+enum ScanResult {
+  ALLOWED
+  ALREADY_USED
+  INVALID
+  BLOCKED
+  WRONG_DAY
+  NOT_FOUND
+  OFFLINE_QUEUED
+  DUPLICATE_OPERATION
+}
+
+model Guest {
+  id                String           @id @default(cuid())
+  registrationNumber String         @unique
+  firstName         String
+  lastName          String
+  phone             String
+  registrationDedupKey String?      @unique
+  category          GuestCategory
+  language          GuestLanguage    @default(RU)
+  publicTicketToken String           @unique
+  qrTokenHash       String           @unique
+  status            GuestStatus      @default(ACTIVE)
+  consentAccepted   Boolean
+  consentAcceptedAt DateTime
+  source            String?
+  adminComment      String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  eventDates        GuestEventDate[]
+  checkIns          CheckIn[]
+  scanAttempts      ScanAttempt[]
+
+  @@index([phone])
+  @@index([lastName, firstName])
+  @@index([category])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model GuestEventDate {
+  id        String   @id @default(cuid())
+  guestId   String
+  eventDate DateTime @db.Date
+  guest     Guest    @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  @@unique([guestId, eventDate])
+  @@index([eventDate])
+}
+
+model CheckIn {
+  id              String        @id @default(cuid())
+  guestId         String
+  eventDate       DateTime      @db.Date
+  checkedInAt     DateTime      @default(now())
+  scannerUserId   String?
+  scannerDeviceId String?
+  mode            CheckInMode
+  operationId     String        @unique
+  metadata        Json?
+  guest           Guest         @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  scannerUser     User?         @relation(fields: [scannerUserId], references: [id])
+  scannerDevice   ScannerDevice? @relation(fields: [scannerDeviceId], references: [id])
+
+  @@unique([guestId, eventDate])
+  @@index([eventDate])
+  @@index([checkedInAt])
+  @@index([scannerUserId])
+}
+
+model User {
+  id             String          @id @default(cuid())
+  name           String
+  login          String          @unique
+  passwordHash   String
+  role           UserRole
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  checkIns       CheckIn[]
+  devices        ScannerDevice[]
+  auditLogs      AuditLog[]
+
+  @@index([role])
+  @@index([isActive])
+}
+
+model ScannerDevice {
+  id          String    @id @default(cuid())
+  deviceToken String    @unique
+  name        String
+  lastSeenAt  DateTime?
+  userId      String?
+  createdAt   DateTime  @default(now())
+  user        User?      @relation(fields: [userId], references: [id])
+  checkIns    CheckIn[]
+}
+
+model ScanAttempt {
+  id              String     @id @default(cuid())
+  guestId         String?
+  tokenFingerprint String
+  result          ScanResult
+  reason          String?
+  eventDate       DateTime?  @db.Date
+  scannerUserId   String?
+  scannerDeviceId String?
+  ip              String?
+  operationId     String?
+  createdAt       DateTime   @default(now())
+  guest           Guest?     @relation(fields: [guestId], references: [id], onDelete: SetNull)
+
+  @@index([tokenFingerprint])
+  @@index([result])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model EventSettings {
+  id                String   @id @default(cuid())
+  eventName         String   @default("AgroFest 2026")
+  registrationOpen  Boolean  @default(true)
+  publicBaseUrl     String?
+  supportContact    String?
+  captchaEnabled    Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
+}
+
+model RegistrationCounter {
+  id        String   @id
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt
+}

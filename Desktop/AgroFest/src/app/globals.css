@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --agro-green: #004f2f;
+  --agro-orange: #f15a22;
+  --agro-yellow: #f6d900;
+  --agro-light-green: #39b663;
+  --agro-ink: #242124;
+  --agro-paper: #fffaf4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color: var(--agro-ink);
+  background: var(--agro-paper);
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.brand-gradient {
+  background: linear-gradient(135deg, var(--agro-green) 0%, #35b85f 38%, var(--agro-yellow) 62%, var(--agro-orange) 100%);
+}
+
+.leaf-pattern {
+  background-image:
+    radial-gradient(ellipse at 20% 20%, rgba(0, 79, 47, 0.08) 0 18%, transparent 19%),
+    radial-gradient(ellipse at 80% 30%, rgba(241, 90, 34, 0.10) 0 16%, transparent 17%),
+    radial-gradient(ellipse at 45% 80%, rgba(57, 182, 99, 0.10) 0 14%, transparent 15%);
+  background-size: 160px 120px;
+}
+
+.focus-ring:focus-visible {
+  outline: 3px solid var(--agro-yellow);
+  outline-offset: 3px;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+}
