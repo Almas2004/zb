@@ -1,0 +1,8 @@
+Desktop/AgroFest/*.sh text eol=lf
+Desktop/AgroFest/scripts/*.sh text eol=lf
+Desktop/AgroFest/Dockerfile text eol=lf
+Desktop/AgroFest/*.yml text eol=lf
+Desktop/AgroFest/*.yaml text eol=lf
+Desktop/AgroFest/**/*.yml text eol=lf
+Desktop/AgroFest/**/*.yaml text eol=lf
+Desktop/AgroFest/**/*.conf text eol=lf
