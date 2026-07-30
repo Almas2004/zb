@@ -84,6 +84,21 @@ describe("AgroFest production acceptance scenarios", () => {
     expect(guests).toBe(1);
   });
 
+  it("deduplicates repeated public registration across phone formats", async () => {
+    setPublicTestDate("2026-07-31");
+    const suffix = String(Date.now() + Math.floor(Math.random() * 1000)).slice(-7);
+    const rawPhone = `8 (705) ${suffix.slice(0, 3)}-${suffix.slice(3, 5)}-${suffix.slice(5, 7)}`;
+    const formattedPhone = `+7 705 ${suffix.slice(0, 3)} ${suffix.slice(3, 5)} ${suffix.slice(5, 7)}`;
+    const normalizedPhone = `+7705${suffix}`;
+    const first = await publicGuest(210011, { phone: rawPhone });
+    const second = await publicGuest(210012, { phone: formattedPhone, firstName: "Repeat", lastName: "Phone" });
+    expect(first.guest.phone).toBe(normalizedPhone);
+    expect(second.alreadyRegistered).toBe(true);
+    expect(second.guest.registrationNumber).toBe(first.guest.registrationNumber);
+    const guests = await prisma.guest.count({ where: { registrationDedupKey: `phone:${normalizedPhone}:2026-07-31` } });
+    expect(guests).toBe(1);
+  });
+
   it("public form does not render date buttons", () => {
     const source = readFileSync("src/components/RegistrationForm.tsx", "utf8");
     expect(source).not.toContain("DateToggle");

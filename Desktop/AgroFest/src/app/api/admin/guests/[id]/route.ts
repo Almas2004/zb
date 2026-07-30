@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authErrorResponse, requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { normalizePhone } from "@/lib/validators";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -13,7 +14,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     data: {
       firstName: body.firstName,
       lastName: body.lastName,
-      phone: body.phone,
+      phone: normalizePhone(body.phone),
       category: body.category,
       status: body.status,
       adminComment: body.adminComment

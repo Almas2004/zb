@@ -33,7 +33,7 @@ export function AdminGuestForm() {
         <input name="firstName" className="rounded-lg border px-4 py-3" placeholder="Имя" />
         <input name="lastName" className="rounded-lg border px-4 py-3" placeholder="Фамилия" />
       </div>
-      <input name="phone" className="rounded-lg border px-4 py-3" placeholder="+7 7XX XXX XX XX" />
+      <input name="phone" type="tel" inputMode="tel" autoComplete="tel" className="rounded-lg border px-4 py-3" placeholder="Например: +7 705 571 55 06" />
       <select name="category" className="rounded-lg border px-4 py-3"><option value="GUEST">Гость</option><option value="FARMER">Фермер</option></select>
       <div className="flex gap-4"><label><input name="day1" type="checkbox" defaultChecked /> 31 июля</label><label><input name="day2" type="checkbox" /> 1 августа</label></div>
       {error && <p className="text-red-700">{error}</p>}

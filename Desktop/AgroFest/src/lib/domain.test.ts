@@ -1,14 +1,39 @@
 import { describe, expect, it } from "vitest";
 import { fingerprint, randomToken, sha256 } from "./crypto";
 import { currentAlmatyDateKey, resolveServerRegistrationDate } from "./dates";
-import { registrationSchema } from "./validators";
+import { normalizeKazakhstanPhone, registrationSchema } from "./validators";
 
 describe("registration validation", () => {
+  it.each([
+    "87055715506",
+    "8 705 571 55 06",
+    "8 (705) 571-55-06",
+    "+77055715506",
+    "+7 705 571 55 06",
+    "+7 (705) 571-55-06",
+    "77055715506",
+    "7055715506"
+  ])("normalizes Kazakhstan phone variant %s", (value) => {
+    expect(normalizeKazakhstanPhone(value)).toBe("+77055715506");
+  });
+
+  it.each([
+    "",
+    "123",
+    "+770557155060",
+    "phone",
+    "++77055715506",
+    "+1 705 571 55 06",
+    "+79055715506"
+  ])("rejects invalid phone value %s", (value) => {
+    expect(normalizeKazakhstanPhone(value)).toBeNull();
+  });
+
   it("accepts Kazakhstan mobile phones and both event dates", () => {
     const parsed = registrationSchema.parse({
       firstName: "Алия",
       lastName: "Серикова",
-      phone: "+7 701 123 45 67",
+      phone: "8 (701) 123-45-67",
       category: "GUEST",
       language: "KZ",
       dates: ["2026-07-31", "2026-08-01"],
@@ -16,6 +41,7 @@ describe("registration validation", () => {
       website: ""
     });
     expect(parsed.dates).toHaveLength(2);
+    expect(parsed.phone).toBe("+77011234567");
   });
 
   it("accepts public registration without visit dates", () => {
@@ -29,6 +55,7 @@ describe("registration validation", () => {
       website: ""
     });
     expect(parsed.dates).toBeUndefined();
+    expect(parsed.phone).toBe("+77011234567");
   });
 });
 

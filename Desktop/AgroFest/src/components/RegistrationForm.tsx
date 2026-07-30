@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { registrationSchema } from "@/lib/validators";
+import { formatKazakhstanPhone, registrationSchema } from "@/lib/validators";
 import { dictionaries, type Locale } from "@/lib/i18n";
 import { Button } from "./Button";
 
@@ -16,10 +16,12 @@ export function RegistrationForm() {
   const t = dictionaries[locale];
   const form = useForm<FormValues>({
     resolver: zodResolver(registrationSchema),
+    mode: "onBlur",
+    reValidateMode: "onBlur",
     defaultValues: {
       firstName: "",
       lastName: "",
-      phone: "+7 7",
+      phone: "",
       category: "GUEST",
       language: locale,
       consentAccepted: false,
@@ -40,6 +42,8 @@ export function RegistrationForm() {
     form.setValue("language", next);
     localStorage.setItem("agrofest_locale", next);
   }
+
+  const phoneField = form.register("phone");
 
   async function onSubmit(values: FormValues) {
     setServerError("");
@@ -84,7 +88,20 @@ export function RegistrationForm() {
         <Field label={t.lastName} error={form.formState.errors.lastName?.message}><input className="focus-ring w-full rounded-lg border border-neutral-300 px-4 py-3" {...form.register("lastName")} /></Field>
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Field label={t.phone} error={form.formState.errors.phone?.message}><input inputMode="tel" className="focus-ring w-full rounded-lg border border-neutral-300 px-4 py-3" {...form.register("phone")} /></Field>
+        <Field label={t.phone} error={form.formState.errors.phone?.message}>
+          <input
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder={locale === "KZ" ? "Мысалы: +7 705 571 55 06" : "Например: +7 705 571 55 06"}
+            className="focus-ring w-full rounded-lg border border-neutral-300 px-4 py-3"
+            {...phoneField}
+            onBlur={(event) => {
+              phoneField.onBlur(event);
+              form.setValue("phone", formatKazakhstanPhone(event.target.value), { shouldValidate: true });
+            }}
+          />
+        </Field>
         <Field label={t.category} error={form.formState.errors.category?.message}>
           <select className="focus-ring w-full rounded-lg border border-neutral-300 px-4 py-3" {...form.register("category")}>
             <option value="GUEST">{t.guest}</option>
